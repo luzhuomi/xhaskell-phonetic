@@ -10,13 +10,13 @@ import qualified Text.Phonetic.PDeriv.Dictionary as D
 import Text.Phonetic.PDeriv.Pattern
 import Text.Phonetic.PDeriv.Consonant
 import Text.Phonetic.PDeriv.Vowel
-import Text.Phonetic.PDeriv.ConsonantTable
-import Text.Phonetic.PDeriv.VowelTable
+import Text.Phonetic.PDeriv.SoundMap
 
-toConsonants :: S.ByteString -> ConsonantTable ->  [S.ByteString]
-toConsonants str ctab = 
-    let ws = S.words str
-    in concatMap (\w -> getConsonantsFromWord w ctab) ws
+
+getConsonantsFromSentence :: S.ByteString -> D.Dictionary () -> D.Dictionary () ->  [S.ByteString]
+getConsonantsFromSentence str consonants vowels = 
+    let ws = S.words str 
+    in concatMap (\w -> getConsonantsFromWord w consonants vowels) ws
 
 
 -- | extract the consonants form a word
@@ -27,66 +27,75 @@ toConsonants str ctab =
 -- dongfang -> [ 'd', 'f' ]
 -- IMPORTANT: the definition of 'minor' consonant is still heuristic. 
 -- We need a better rule based system to address this.
-getConsonantsFromWord :: S.ByteString -> ConsonantTable -> [S.ByteString]
-getConsonantsFromWord w ctab = 
-    let segs = segmentWord w
+getConsonantsFromWord :: S.ByteString -> D.Dictionary ()  -> D.Dictionary () -> [S.ByteString]
+getConsonantsFromWord w consonants vowels = 
+    let segs = segmentWord w consonants vowels 
     in dropMinorConsonantsVowels segs 0
 
 
-consonantToConsonants :: S.ByteString -> ConsonantTable -> [(S.ByteString, Float)]
-consonantToConsonants consonant tab = 
-    case D.lookup consonant tab of
+getScores k dict = 
+    case D.lookup k dict of
       Nothing -> []
       Just kvs -> kvs
 
 
-isConsonant :: S.ByteString -> ConsonantTable -> Bool
+isConsonant :: S.ByteString -> D.Dictionary () -> Bool
 isConsonant consonant tab = 
     case D.lookup  consonant tab of
       Nothing -> False
       Just _  -> True
       
-mkConsonantsPattern :: S.ByteString -> ConsonantTable -> Pat
-mkConsonantsPattern str cTab = 
-    let consonants = toConsonants str cTab
+-- | create a pattern from the ctable assuming the input consonants are the row ids of the consonant table      
+mkConsonantPattern :: [S.ByteString]  -- ^ a sequnece of consonants extracted from the sentence or word 
+                      -> ConsonantTable -> Pat
+mkConsonantPattern consonants cTab = 
+    let d = rowScores cTab
         consonantScores :: [[(S.ByteString,Float)]] 
-        consonantScores = map (\c -> consonantToConsonants c cTab) consonants 
+        consonantScores = map (\c -> getScores c d) consonants 
         pattern  = mkSequencePattern (interleave (map (mkChoicePattern . addEmp .  (map mkLitPattern)) consonantScores) anyInitials)
     in pattern
 
 
-toVowels :: S.ByteString -> VowelTable -> [S.ByteString] 
-toVowels str vtab = 
+getVowelsFromSentence :: S.ByteString -> D.Dictionary () -> D.Dictionary () -> [S.ByteString] 
+getVowelsFromSentence str consonants vowels = 
   let ws = S.words str
-  in concatMap (\w -> getVowelsFromWord w vtab) ws
+  in concatMap (\w -> getVowelsFromWord w consonants vowels) ws
      
-getVowelsFromWord :: S.ByteString -> VowelTable -> [S.ByteString]     
-getVowelsFromWord w vtab = 
-  let segs = segmentWord w 
+getVowelsFromWord :: S.ByteString -> D.Dictionary () -> D.Dictionary () -> [S.ByteString]     
+getVowelsFromWord w consonants vowels = 
+  let segs = segmentWord w consonants vowels
   in dropMinorVowelsConsonants segs 0 
      
      
-vowelToVowels :: S.ByteString -> VowelTable -> [(S.ByteString, Float)]
-vowelToVowels vowel tab = 
-    case D.lookup vowel tab of
-      Nothing -> []
-      Just kvs -> kvs
 
-
-isVowel :: S.ByteString -> VowelTable -> Bool
+isVowel :: S.ByteString -> D.Dictionary () -> Bool
 isVowel vowel tab = 
     case D.lookup  vowel tab of
       Nothing -> False
       Just _  -> True
       
-mkVowelsPattern :: S.ByteString -> VowelTable -> Pat
-mkVowelsPattern str vTab = 
-    let vowels = toVowels str vTab
-        vowelScores :: [[(S.ByteString,Float)]] 
-        vowelScores = map (\v -> vowelToVowels v vTab) vowels 
-        pattern  = mkSequencePattern (interleave (map (mkChoicePattern . addEmp .  (map mkLitPattern)) vowelScores) anyInitials)
-    in pattern
+      
+-- | create a pattern from the vtable assuming the input vowels are the row ids of the vowel table            
+mkVowelPattern :: [S.ByteString]  -- ^ a sequnece of vowels extracted from the sentence or word
+                   -> VowelTable -> Pat
+mkVowelPattern vowels vTab = 
+  let d = rowScores vTab
+      vowelScores :: [[(S.ByteString,Float)]] 
+      vowelScores = map (\v -> getScores v d) vowels 
+      pattern  = mkSequencePattern (interleave (map (mkChoicePattern . addEmp .  (map mkLitPattern)) vowelScores) anyInitials)
+  in pattern
      
+       
+getSoundFromSentence :: S.ByteString -> ConsonantTable -> VowelTable -> [S.ByteString]      
+getSoundFromSentence str ctab vtab = 
+  let ws = S.words str
+      in concatMap (\w -> getSoundFromWord w ctab vtab) ws
+         
+         
+getSoundFromWord :: S.ByteString -> ConsonantTable -> VowelTable -> [S.ByteString]      
+getSoundFromWord w ctab vtab = undefined
+
+       
      
 
 data Segment = CSeg S.ByteString -- ^ consonant 
@@ -132,10 +141,8 @@ dropMinorVowelsConsonants ((CSeg _):segs) p
 
 
 
-
-
-segmentWord :: S.ByteString -> [Segment]
-segmentWord w 
+segmentWord :: S.ByteString -> D.Dictionary ()  -> D.Dictionary ()  -> [Segment]
+segmentWord w consonantsDict vowelsDict
     | S.null w = []
     | otherwise = 
         let p = S.map toLower (S.take maxLength w)
@@ -143,11 +150,11 @@ segmentWord w
             mbConsonants = map (\k -> myLookup k consonantsDict) prefices
             mbVowels     = map (\k -> myLookup k vowelsDict) prefices
         in case (firstJust mbConsonants, firstJust mbVowels) of 
-             (Just c, Just v) | S.length v > S.length c -> (VSeg v):(segmentWord (S.drop (S.length v) w))
-                              | otherwise               -> (CSeg c):(segmentWord (S.drop (S.length c) w))
-             (Just c, Nothing) -> (CSeg c):(segmentWord (S.drop (S.length c) w))
-             (Nothing, Just v)  -> (VSeg v):segmentWord (S.drop (S.length v) w)
-             (Nothing, Nothing) -> segmentWord (S.tail w)
+             (Just c, Just v) | S.length v > S.length c -> (VSeg v):(segmentWord (S.drop (S.length v) w) consonantsDict vowelsDict)
+                              | otherwise               -> (CSeg c):(segmentWord (S.drop (S.length c) w) consonantsDict vowelsDict)
+             (Just c, Nothing) -> (CSeg c):(segmentWord (S.drop (S.length c) w) consonantsDict vowelsDict)
+             (Nothing, Just v)  -> ((VSeg v):segmentWord (S.drop (S.length v) w) consonantsDict vowelsDict)
+             (Nothing, Nothing) -> segmentWord (S.tail w) consonantsDict vowelsDict
     where myLookup :: S.ByteString -> D.Dictionary () -> Maybe S.ByteString
           myLookup k d = case D.lookup k d of
                          Just _ -> Just k
