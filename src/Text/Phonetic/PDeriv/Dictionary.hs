@@ -45,3 +45,6 @@ fromList l = foldl (\d (key,val) -> insert key val d) empty l
     
 isIn :: Ha.Hashable k => k -> Dictionary a -> Bool
 isIn k d = isJust (Text.Phonetic.PDeriv.Dictionary.lookup k d)
+
+values :: Dictionary a -> [a] 
+values (Dictionary im) = IM.elems im

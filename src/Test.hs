@@ -12,8 +12,8 @@ import qualified Text.Phonetic.PDeriv.Dictionary as D
 phonetic_distance :: ConsonantTable -> VowelTable -> S.ByteString -> S.ByteString -> Float
 phonetic_distance ctab vtab en sg = 
   let 
-      consonant_dict = D.fromList (zip (rowIDs ctab) (repeat ())) -- assuming it is the rowIds are the english consonants
-      row_dict       = D.fromList (zip (rowIDs vtab) (repeat ()))
+      consonant_dict = D.fromList (map (\x -> (x,x)) (rowIDs ctab) ) -- assuming it is the rowIds are the english consonants
+      row_dict       = D.fromList (map (\x -> (x,x)) (rowIDs vtab) )
       
       sConsonants = getConsonantsFromSentence sg consonant_dict row_dict
       sVowels     = getVowelsFromSentence sg consonant_dict row_dict
@@ -23,8 +23,21 @@ phonetic_distance ctab vtab en sg =
       
       eConPattern = mkConsonantPattern eConsonants ctab
       eVowPattern = mkVowelPattern eVowels vtab
-  in ((match eConPattern sConsonants) + (match eVowPattern sVowels)) / 2
+  in ((match eConPattern sConsonants) + (match eVowPattern sVowels)) / (fromIntegral ((length sConsonants) + (length sVowels)))
      
+
+
+phonetic_distance2 :: ConsonantTable -> VowelTable -> S.ByteString -> S.ByteString -> Float
+phonetic_distance2 ctab vtab en sg = 
+  let 
+      consonant_dict = D.fromList (map (\x -> (x,x)) (rowIDs ctab) ) -- assuming it is the rowIds are the english consonants
+      row_dict       = D.fromList (map (\x -> (x,x)) (rowIDs vtab) )
+      
+      sSounds = getSoundsFromSentence sg consonant_dict row_dict
+      eSounds = getSoundsFromSentence en consonant_dict row_dict      
+      
+      eSoundPattern = mkSoundPattern eSounds ctab vtab
+  in (match eSoundPattern sSounds) / (fromIntegral (length sSounds))
      
 singlish_consonant_table :: IO ConsonantTable
 singlish_consonant_table = parseSoundMap "../resources/consonants_consonants_snglish.dct"
