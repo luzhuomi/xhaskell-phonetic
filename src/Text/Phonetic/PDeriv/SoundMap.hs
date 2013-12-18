@@ -55,7 +55,9 @@ parseSoundMap fp = do
 
 
 
-
+transpose :: SoundMap -> SoundMap
+transpose (SoundMap rids cids rscores cscores) = 
+  SoundMap cids rids cscores rscores
 
 -- question: given a funky (singlish) word "xyz" how do I know which english word to match? Trying all seems silly.
 -- we need a way to organize all the words that we are interested and compare

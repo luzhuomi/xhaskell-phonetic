@@ -13,13 +13,13 @@ phonetic_distance :: ConsonantTable -> VowelTable -> S.ByteString -> S.ByteStrin
 phonetic_distance ctab vtab en sg = 
   let 
       consonant_dict = D.fromList (map (\x -> (x,x)) (rowIDs ctab) ) -- assuming it is the rowIds are the english consonants
-      row_dict       = D.fromList (map (\x -> (x,x)) (rowIDs vtab) )
+      vowel_dict       = D.fromList (map (\x -> (x,x)) (rowIDs vtab) )
       
-      sConsonants = getConsonantsFromSentence sg consonant_dict row_dict
-      sVowels     = getVowelsFromSentence sg consonant_dict row_dict
+      sConsonants = getConsonantsFromSentence sg consonant_dict vowel_dict
+      sVowels     = getVowelsFromSentence sg consonant_dict vowel_dict
       
-      eConsonants = getConsonantsFromSentence en consonant_dict row_dict
-      eVowels     = getVowelsFromSentence en consonant_dict row_dict      
+      eConsonants = getConsonantsFromSentence en consonant_dict vowel_dict
+      eVowels     = getVowelsFromSentence en consonant_dict vowel_dict      
       
       eConPattern = mkConsonantPattern eConsonants ctab
       eVowPattern = mkVowelPattern eVowels vtab
@@ -31,13 +31,28 @@ phonetic_distance2 :: ConsonantTable -> VowelTable -> S.ByteString -> S.ByteStri
 phonetic_distance2 ctab vtab en sg = 
   let 
       consonant_dict = D.fromList (map (\x -> (x,x)) (rowIDs ctab) ) -- assuming it is the rowIds are the english consonants
-      row_dict       = D.fromList (map (\x -> (x,x)) (rowIDs vtab) )
+      vowel_dict       = D.fromList (map (\x -> (x,x)) (rowIDs vtab) )
       
-      sSounds = getSoundsFromSentence sg consonant_dict row_dict
-      eSounds = getSoundsFromSentence en consonant_dict row_dict      
+      sSounds = getSoundsFromSentence sg consonant_dict vowel_dict
+      eSounds = getSoundsFromSentence en consonant_dict vowel_dict      
       
       eSoundPattern = mkSoundPattern eSounds ctab vtab
   in (match eSoundPattern sSounds) / (fromIntegral (length sSounds))
+     
+     
+phonetic_en_cn_consonant_only :: ConsonantTable -> S.ByteString -> S.ByteString -> Float     
+phonetic_en_cn_consonant_only ctab en cn = 
+  let consonant_dict = D.fromList (map (\x -> (x,x)) (rowIDs ctab) ) -- assuming it is the rowIds are the english consonants
+      tctab          = transpose ctab
+      initial_dict = D.fromList (map (\x -> (x,x)) (rowIDs tctab )) -- assuming it is the colIds are the chinese initials
+      vowel_dict     = D.empty
+      cInitials = getConsonantsFromSentence cn initial_dict vowel_dict
+      eConsonants = getConsonantsFromSentence en consonant_dict vowel_dict      
+      eConPattern = mkConsonantPattern eConsonants ctab
+      cIniPattern = mkConsonantPattern cInitials tctab      
+  in ((match eConPattern cInitials) + (match cIniPattern eConsonants)) / (fromIntegral ((length eConsonants) + (length cInitials)))
+      
+      
      
 singlish_consonant_table :: IO ConsonantTable
 singlish_consonant_table = parseSoundMap "../resources/consonants_consonants_snglish.dct"
