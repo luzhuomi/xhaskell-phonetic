@@ -86,15 +86,6 @@ mkVowelPattern vowels vTab =
   in pattern
      
        
-getSoundFromSentence :: S.ByteString -> ConsonantTable -> VowelTable -> [S.ByteString]      
-getSoundFromSentence str ctab vtab = 
-  let ws = S.words str
-      in concatMap (\w -> getSoundFromWord w ctab vtab) ws
-         
-         
-getSoundFromWord :: S.ByteString -> ConsonantTable -> VowelTable -> [S.ByteString]      
-getSoundFromWord w ctab vtab = undefined
-
        
      
 
