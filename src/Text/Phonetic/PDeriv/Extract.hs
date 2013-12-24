@@ -52,7 +52,7 @@ mkConsonantPattern consonants cTab =
     let d = rowScores cTab
         consonantScores :: [[(S.ByteString,Float)]] 
         consonantScores = map (\c -> getScores c d) consonants 
-        pattern  = mkSequencePattern (interleave (map (mkChoicePattern . addEmp .  (map mkLitPattern)) consonantScores) anyInitials)
+        pattern  = mkSequencePattern (interleave (map (mkChoicePattern . addEmp .  (map mkLitPattern)) consonantScores) anySounds)
     in pattern
 
 
@@ -82,7 +82,7 @@ mkVowelPattern vowels vTab =
   let d = rowScores vTab
       vowelScores :: [[(S.ByteString,Float)]] 
       vowelScores = map (\v -> getScores v d) vowels 
-      pattern  = mkSequencePattern (interleave (map (mkChoicePattern . addEmp .  (map mkLitPattern)) vowelScores) anyInitials)
+      pattern  = mkSequencePattern (interleave (map (mkChoicePattern . addEmp .  (map mkLitPattern)) vowelScores) anySounds)
   in pattern
      
        
@@ -155,7 +155,7 @@ mkSoundPattern sounds cTab vTab =
       vD = rowScores vTab
       soundScores :: [[(S.ByteString,Float)]] 
       soundScores = map (\s -> getScores s cD ++ getScores s vD ) sounds
-      pattern  = mkSequencePattern (interleave (map (mkChoicePattern . addEmp .  (map mkLitPattern)) soundScores) anyInitials)
+      pattern  = mkSequencePattern (interleave (map (mkChoicePattern . addEmp .  (map mkLitPattern)) soundScores) anySounds)
     in pattern                    
       
 
@@ -189,8 +189,8 @@ segmentWord w consonantsDict vowelsDict
 anyConsonalts = PStar (mkLitPattern (S.pack "_",-1.0))
 
 
--- match with any initials, but with penalty
-anyInitials = PStar (mkLitPattern (S.pack "_",-1.0))
+-- match with any sounds, but with penalty
+anySounds = PStar (mkLitPattern (S.pack "_",-1.0))
 
 
 -- match with any initials, but with penalty
